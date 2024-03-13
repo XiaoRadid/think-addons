@@ -2,12 +2,10 @@
     "name": "xbao/think-addons",
     "description": "The ThinkPHP6 Addons Package",
     "license": "Apache-2.0",
-    "homepage": "https://github.com/XiaoRadid/think-addons",
     "authors": [
         {
-            "name": "xbao-guanxiao",
-            "email": "1071492670@qq.com",
-            "homepage": "https://github.com/XiaoRadid/think-addons"
+            "name": "guanxiao",
+            "email": "1071492670@qq.com"
         }
     ],
     "require": {
