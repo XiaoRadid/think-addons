@@ -36,5 +36,6 @@
         "post-install-cmd": [
             "php think addons:config"
         ]
-    }
+    },
+    "minimum-stability": "dev"
 }
