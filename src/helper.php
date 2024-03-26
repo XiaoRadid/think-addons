@@ -43,22 +43,6 @@ spl_autoload_register(function ($class) {
 
 });
 
-if (!function_exists('hook')) {
-    /**
-     * 处理插件钩子
-     * @param string $event 钩子名称
-     * @param array|null $params 传入参数
-     * @param bool $once 是否只返回一个结果
-     * @return mixed
-     */
-    function hook($event, $params = null, bool $once = false)
-    {
-        $result = Event::trigger($event, $params, $once);
-
-        return join('', $result);
-    }
-}
-
 if (!function_exists('get_addons_info')) {
     /**
      * 读取插件的基础信息
@@ -73,6 +57,23 @@ if (!function_exists('get_addons_info')) {
         }
 
         return $addon->getInfo();
+    }
+}
+
+if (!function_exists('set_addons_info')) {
+    /**
+     * 设置基础配置信息
+     * @param string $name 插件名
+     * @param array $info  配置信息
+     * @return array
+     */
+    function set_addons_info($name, $info)
+    {
+        $addon = get_addons_instance($name);
+        if (!$addon) {
+            return [];
+        }
+        return $addon->setInfo($info);
     }
 }
 
@@ -175,3 +176,86 @@ if (!function_exists('addons_url')) {
     }
 }
 
+if (!function_exists('hook')) {
+    /**
+     * 处理插件钩子
+     * @param string $event 钩子名称
+     * @param array|null $params 传入参数
+     * @param bool $once 是否只返回一个结果
+     * @return mixed
+     */
+    function hook($event, $params = null, bool $once = false)
+    {
+        $result = Event::trigger($event, $params, $once);
+
+        return join('', $result);
+    }
+}
+
+if (!function_exists('get_addons_list')) {
+    /**
+     * 获取插件列表
+     * @return array
+     */
+    function get_addons_list()
+    {
+        $addonsPath = app()->addons->getAddonsPath();
+        $results = scandir($addonsPath);
+
+        $list = [];
+        foreach ($results as $name) {
+            if ($name === '.' or $name === '..') {
+                continue;
+            }
+            //检查指定的文件是否是常规的文件
+            if (is_file($addonsPath . $name)) {
+                continue;
+            }
+            $addonDir = $addonsPath . $name . DIRECTORY_SEPARATOR;
+            //检查指定的文件是否是一个目录
+            if (!is_dir($addonDir)) {
+                continue;
+            }
+            $info = get_addons_info($name);
+            if (empty($info)) continue;
+
+            $list[$name] = $info;
+        }
+        return $list;
+    }
+}
+
+if (!function_exists('get_addons_config')) {
+    /**
+     * 获取插件配置信息
+     * @param string $name 插件名
+     * @param bool $type 是否获取完整配置
+     * @return array
+     */
+    function get_addons_config($name, $type = false)
+    {
+        $addon = get_addons_instance($name);
+        if (!$addon) {
+            return [];
+        }
+
+        return $addon->getConfig($type);
+    }
+}
+
+if (!function_exists('set_addons_config')) {
+    /**
+     * 获取插件类的配置值值
+     * @param string $name 插件名
+     * @return array
+     */
+    function set_addons_config($name, $value = [])
+    {
+        $addon = get_addons_instance($name);
+        if (!$addon) {
+            return [];
+        }
+
+        return $addon->setConfig($value);
+    }
+}
