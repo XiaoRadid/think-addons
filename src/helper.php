@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 use think\facade\Event;
 use think\facade\Route;
+use think\Response;
 use think\helper\{
     Str, Arr
 };
@@ -257,5 +258,101 @@ if (!function_exists('set_addons_config')) {
         }
 
         return $addon->setConfig($value);
+    }
+}
+
+if (!function_exists('get_assets_check')) {
+    /**
+     * 检测是否存在静态资源并处理
+     * @param \think\Request $request
+     * @return false|\think\Response
+     * @throws Exception
+     */
+    function get_assets_check(\think\Request $request)
+    {
+        $staticSuffix = config('addons.static_suffix');
+        if (!is_array($staticSuffix)) {
+            throw new \Exception("配置项addons.static_suffix必须为数组");
+        }
+        if (empty($staticSuffix)) {
+            throw new \Exception("配置项addons.static_suffix不能为空");
+        }
+        # 检测是否资源文件
+        $extension = pathinfo($request->pathinfo(), PATHINFO_EXTENSION);
+        if (in_array($extension, $staticSuffix)) {
+            $mimeContentTypes = [
+                'xml'   => 'application/xml,text/xml,application/x-xml',
+                'json'  => 'application/json,text/x-json,application/jsonrequest,text/json',
+                'js'    => 'text/javascript,application/javascript,application/x-javascript',
+                'css'   => 'text/css',
+                'rss'   => 'application/rss+xml',
+                'yaml'  => 'application/x-yaml,text/yaml',
+                'atom'  => 'application/atom+xml',
+                'pdf'   => 'application/pdf',
+                'text'  => 'text/plain',
+                'image' => 'image/png,image/jpg,image/jpeg,image/pjpeg,image/gif,image/webp,image/*',
+                'csv'   => 'text/csv',
+                'html'  => 'text/html,application/xhtml+xml,*/*',
+                'vue'   => 'application/octet-stream',
+                'svg'   => 'image/svg+xml',
+            ];
+            # 检测文件媒体类型
+            $mimeContentType = 'text/plain';
+            if (isset($mimeContentTypes[$extension])) {
+                $mimeContentType = $mimeContentTypes[$extension];
+            }
+            # 检测是否框架GZ资源
+            $file = public_path().$request->pathinfo();
+            if (file_exists($file)) {
+                $content  = file_get_contents($file);
+                return response()->code(200)->contentType($mimeContentType)->content($content);
+            }
+            # 检测是否插件资源
+            $pluginRoute = explode('/',$request->pathinfo());
+            if (isset($pluginRoute[1])) {
+                $plugin = $pluginRoute[1];
+                unset($pluginRoute[0]);
+                unset($pluginRoute[1]);
+                $pluginRoute = implode('/', $pluginRoute);
+                $file = root_path()."addons/{$plugin}/public/{$pluginRoute}";
+                if (file_exists($file)) {
+                    $content  = file_get_contents($file);
+                    return response()->code(200)->contentType($mimeContentType)->content($content);
+                }
+            }
+            # 文件资源不存在则找官方库
+            $file = root_path()."view/{$request->pathinfo()}.gz";
+            if (file_exists($file)) {
+                $content  = file_get_contents($file);
+                return response()->code(200)->header([
+                    'Content-Type'      => $mimeContentType,
+                    'Content-Encoding'  => 'gzip'
+                ])->content($content);
+            }
+            # 普通文件
+            $file = root_path()."view/{$request->pathinfo()}";
+            if (file_exists($file)) {
+                $content  = file_get_contents($file);
+                return response()->code(200)->contentType($mimeContentType)->content($content);
+            }
+        }
+        return false;
+    }
+}
+
+if (!function_exists('get_addons_view')) {
+    /**
+     * 获取插件视图
+     * @param mixed $plugin
+     */
+    function get_addons_view($plugin = '')
+    {
+        $viewPath = public_path() . 'xhadmin/index.html';
+        if (!file_exists($viewPath)) {
+            throw new Exception('官方后台视图模板文件不存在');
+        }
+        $content = file_get_contents($viewPath);
+        $response = Response::create()->content($content);
+        return $response;
     }
 }

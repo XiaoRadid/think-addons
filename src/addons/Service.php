@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace think\addons;
 
+use think\Request;
 use think\Route;
 use think\helper\Str;
 use think\facade\Config;
@@ -41,7 +42,7 @@ class Service extends \think\Service
     {
         $this->registerRoutes(function (Route $route) {
             // 路由脚本
-            $execute = '\\think\\addons\\Route::execute';
+            $execute = '\\think\\addons\\Route@execute';
 
             // 注册插件公共中间件
             if (is_file($this->app->addons->getAddonsPath() . 'middleware.php')) {
@@ -49,9 +50,10 @@ class Service extends \think\Service
             }
 
             // 注册控制器路由
-            $route->rule("addons/:addon/[:controller]/[:action]", $execute)->middleware(Addons::class);
+            $route->rule("app/:addons", $execute)->middleware(Addons::class);
             // 自定义路由
             $routes = (array) Config::get('addons.route', []);
+
             foreach ($routes as $key => $val) {
                 if (!$val) {
                     continue;
@@ -168,6 +170,7 @@ class Service extends \think\Service
         $config = Config::get('addons');
         // 读取插件目录及钩子列表
         $base = get_class_methods("\\think\\Addons");
+
         // 读取插件目录中的php文件
         foreach (glob($this->getAddonsPath() . '*/*.php') as $addons_file) {
             // 格式化路径信息
