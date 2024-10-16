@@ -161,7 +161,8 @@ class Addons
         $this->app->http->name($this->request->levelRoute);
 
         // 设置应用目录路径
-        $this->app->setAppPath($this->request->addonsAppPath);
+        $appPath = $this->app->http->getPath() ?: $this->request->addonsAppPath . $this->request->levelRoute . DIRECTORY_SEPARATOR;
+        $this->app->setAppPath($appPath);
         $this->app->http->path($this->request->addonsAppPath);
 
         $controlLayout = config('route.controller_layer', 'controller');

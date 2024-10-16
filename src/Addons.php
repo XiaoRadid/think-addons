@@ -61,13 +61,17 @@ abstract class Addons
         $this->addon_info = "addon_{$this->name}_info";
         $this->view = clone View::engine('Think');
 
-        $this->view->config([
-            'view_path' => $this->addon_path . 'template' . DIRECTORY_SEPARATOR
-        ]);
+        $view = config('addons.view_dir_name');
+        $appName = $this->app->http->getName();
+        if($appName) {
+            $viewPath = $this->app->getAppPath() . $view . DIRECTORY_SEPARATOR;
+        }else{
+            $viewPath = $this->addon_path . $view . DIRECTORY_SEPARATOR;
+        }
 
-        config([
-            'view_path' => $this->addon_path . 'template' . DIRECTORY_SEPARATOR
-        ], 'view');
+        $this->view->config([
+            'view_path' => $viewPath
+        ]);
 
         // 控制器初始化
         $this->initialize();

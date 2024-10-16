@@ -378,24 +378,6 @@ if (!function_exists('get_assets_check')) {
     }
 }
 
-if (!function_exists('get_addons_template_path')) {
-    /**
-     * 获取模板目录位置
-     * @return string
-     */
-    function get_addons_template_path()
-    {
-        $view = config('view.view_dir_name');
-        if (is_dir(app_path() . $view)) {
-            $path = app_path() . $view . DIRECTORY_SEPARATOR;
-        } else {
-            $appName = config('xbao.view_style');
-            $path = root_path() . $view . DIRECTORY_SEPARATOR . ($appName ? $appName . DIRECTORY_SEPARATOR : '');
-        }
-        return $path;
-    }
-}
-
 if (!function_exists('addons_view')) {
     /**
      * 加载模板输出

@@ -85,6 +85,7 @@ class Route
         // 组装控制器命名空间
         $controlLayout = config('route.controller_layer', 'controller');
         $class         = "{$addonsNameSpace}\\app\\{$this->request->levelRoute}\\{$controlLayout}\\{$controller}";
+        $class = str_replace("\\\\", "\\", $class);
 
         if (!class_exists($class)) {
             throw new HttpException(404, 'controller not exists:' . $class);
