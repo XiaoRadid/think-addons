@@ -44,6 +44,8 @@ abstract class Addons
     // 插件信息
     protected $addon_info;
 
+    protected $addon_app_path;
+
     /**
      * 插件构造函数
      * Addons constructor.
@@ -60,8 +62,12 @@ abstract class Addons
         $this->view = clone View::engine('Think');
 
         $this->view->config([
-            'view_path' => $this->addon_path . 'view' . DIRECTORY_SEPARATOR
+            'view_path' => $this->addon_path . 'template' . DIRECTORY_SEPARATOR
         ]);
+
+        config([
+            'view_path' => $this->addon_path . 'template' . DIRECTORY_SEPARATOR
+        ], 'view');
 
         // 控制器初始化
         $this->initialize();
@@ -79,7 +85,6 @@ abstract class Addons
     {
         $class = get_class($this);
         list(, $name, ) = explode('\\', $class);
-        $this->request->addon = $name;
 
         return $name;
     }
@@ -266,6 +271,32 @@ abstract class Addons
         file_put_contents($config_file, json_encode($config, JSON_UNESCAPED_UNICODE));
 
         return isset($config) ? $config : [];
+    }
+
+    /**
+     * 设置插件根目录
+     * @access public
+     * @param string $addonPath 插件根目录
+     * @return $this
+     */
+    public function path(string $addonPath)
+    {
+        if (substr($addonPath, -1) != DIRECTORY_SEPARATOR) {
+            $addonPath .= DIRECTORY_SEPARATOR;
+        }
+
+        $this->addon_path = $addonPath;
+        return $this;
+    }
+
+    /**
+     * 获取插件根目录
+     * @access public
+     * @return string
+     */
+    public function getPath(): string
+    {
+        return $this->addon_path ?: '';
     }
 
     //必须实现安装

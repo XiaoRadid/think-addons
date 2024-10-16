@@ -34,14 +34,11 @@ class Addons
 
     protected $request;
 
-    /*插件名称*/
-    protected $addons;
-
     public function __construct(App $app)
     {
         $this->app  = $app;
         $this->request = $app->request;
-        $this->addons  = $this->request->route('addons', '');
+        $this->addon  = $this->request->route('addons', '');
     }
 
     /**
@@ -62,10 +59,17 @@ class Addons
         // 2.解析路由
         $this->parseRoute();
 
-        // 3.加载插件配置
-        $this->loadConfig();
+        // 4.加载应用配置
+        $appPath = $this->request->addonsAppPath;
+        $this->loadPublic(); // 加载app目录配置
 
-        // 4.加载应用插件composer包
+        $appName = $this->request->levelRoute;
+        if($appName) {
+            $appPath = $this->request->addonsAppPath . $appName . '/';
+            $this->loadApp($appName, $appPath); // 加载app/应用目录配置
+        }
+
+        // 5.加载应用插件composer包
         $this->loadComposer();
 
         // 调度转发
@@ -75,7 +79,6 @@ class Addons
             ->then(function ($request) use ($next) {
                 return $next($request);
             });
-        return $next($request);
     }
     /**
      * 初始化插件
@@ -84,16 +87,16 @@ class Addons
     public function initAddons()
     {
         // 设置插件名称
-        $this->request->addons = $this->addons;
+        $this->request->addon = $this->addon;
 
         // 设置插件目录
-        $this->request->addonsPath = $this->app->getRootPath() . "addons/{$this->addons}/";
+        $this->request->addonsPath = $this->app->getRootPath() . "addons/{$this->addon}/";
 
         // 设置插件应用目录
         $this->request->addonsAppPath = $this->request->addonsPath . "app/";
 
         // 设置插件模板目录
-        $this->request->addonsViewPath = $this->request->addonsPath . "view/";
+        $this->request->addonsViewPath = $this->request->addonsPath . "template/";
 
         // 设置插件配置文件目录
         $this->request->addonsConfigPath = $this->request->addonsPath . "config/";
@@ -112,12 +115,12 @@ class Addons
     {
         $pathinfo = $this->request->pathinfo();
 
-        if (!$this->addons) {
-            throw new HttpException(404, lang('addon %s not found', [$this->addons]));
+        if (!$this->addon) {
+            throw new HttpException(404, lang('addon %s not found', [$this->addon]));
         }
 
         // 解析路由
-        $pathinfo  = str_replace("app/{$this->addons}", '', $pathinfo);
+        $pathinfo  = str_replace("app/{$this->addon}", '', $pathinfo);
         $routeinfo = trim($pathinfo, '/');
         $pathArr   = explode('/', $routeinfo);
         $pathCount = count($pathArr);
@@ -127,7 +130,7 @@ class Addons
 
         // 取方法名
         $action = config('route.default_action', 'index');
-        if ($pathCount > 1 && !is_dir($this->app->getRootPath() . "addons/{$this->addons}/app/" . $routeinfo)) {
+        if ($pathCount > 1 && !is_dir($this->app->getRootPath() . "addons/{$this->addon}/app/" . $routeinfo)) {
             // 控制器
             $controlIndex = $pathCount - 2;
             $control      = ucfirst($pathArr[$controlIndex]);
@@ -150,22 +153,83 @@ class Addons
 
         // 层级
         $this->request->levelRoute = implode('/', $pathArr);
-        // 命名空间
-        $levelRoute = '';
         if ($this->request->levelRoute) {
-            $levelRoute = str_replace("/", "\\", $this->request->levelRoute);
-            $levelRoute = "{$levelRoute}\\";
+            $this->request->levelRoute = str_replace("/", "\\", $this->request->levelRoute);
         }
+
+        // 设置应用名
+        $this->app->http->name($this->request->levelRoute);
+
+        // 设置应用目录路径
+        $this->app->setAppPath($this->request->addonsAppPath);
+        $this->app->http->path($this->request->addonsAppPath);
+
         $controlLayout = config('route.controller_layer', 'controller');
-        $this->app->setNamespace("addons\\{$this->addons}\\app\\{$levelRoute}{$controlLayout}");
+        $this->app->setNamespace("addons\\{$this->addon}\\app\\{$this->request->levelRoute}");
     }
 
     /**
-     * 加载插件配置项
+     * 加载应用文件
+     * @param string $appName 应用名
+     * @return void
+     */
+    protected function loadApp(string $appName, string $appPath): void
+    {
+        if (is_file($appPath . 'common.php')) {
+            include_once $appPath . 'common.php';
+        }
+
+        $files = [];
+        $files = array_merge($files, glob($appPath . 'config' . DIRECTORY_SEPARATOR . '*' . $this->app->getConfigExt()));
+
+        foreach ($files as $file) {
+//            $this->app->config->load($file, pathinfo($file, PATHINFO_FILENAME)); // 这里加载到config同级，可能会存在冲突
+            if (!is_file($file)) {
+                continue;
+            }
+            $configName = pathinfo($file, PATHINFO_FILENAME);
+            $configData = include $file;
+            if (is_array($configData)) {
+                $configs = $this->app->config->get("addons.{$this->addon}", []);
+                if (empty($configs)) {
+                    // 首次添加
+                    $configData = [
+                        $this->addon => [
+                            $configName => $configData,
+                        ],
+                    ];
+                } else {
+                    // 后续添加
+                    $configs[$configName] = $configData;
+                    $configData  = [
+                        $this->addon => $configs,
+                    ];
+                }
+                $this->app->config->set($configData, 'addons');
+            }
+        }
+
+        if (is_file($appPath . 'event.php')) {
+            $this->app->loadEvent(include $appPath . 'event.php');
+        }
+
+        if (is_file($appPath . 'middleware.php')) {
+            $this->app->middleware->import(include $appPath . 'middleware.php', 'addons');
+        }
+
+        if (is_file($appPath . 'provider.php')) {
+            $this->app->bind(include $appPath . 'provider.php');
+        }
+        // 加载应用默认语言包
+        $this->app->loadLangPack($this->app->lang->defaultLangSet());
+    }
+
+    /**
+     * 加载公共配置项
      *
      * @return void
      */
-    public function loadConfig()
+    public function loadPublic()
     {
         // 插件目录
         $addonsPath     = $this->request->addonsPath;
@@ -193,11 +257,11 @@ class Addons
             $configName = pathinfo($file, PATHINFO_FILENAME);
             $configData = include $file;
             if (is_array($configData)) {
-                $configs = $this->app->config->get("addons.{$this->addons}", []);
+                $configs = $this->app->config->get("addons.{$this->addon}", []);
                 if (empty($configs)) {
                     // 首次添加
                     $configData = [
-                        $this->addons => [
+                        $this->addon => [
                             $configName => $configData,
                         ],
                     ];
@@ -205,7 +269,7 @@ class Addons
                     // 后续添加
                     $configs[$configName] = $configData;
                     $configData  = [
-                        $this->addons => $configs,
+                        $this->addon => $configs,
                     ];
                 }
                 $this->app->config->set($configData, 'addons');
@@ -213,13 +277,18 @@ class Addons
         }
 
         // 加载事件文件
-        if (is_file($configPath . '/event.php')) {
-            $this->app->loadEvent(include $configPath . '/event.php');
+        if (is_file($addonsAppPath . 'event.php')) {
+            $this->app->loadEvent(include $addonsAppPath . '/event.php');
         }
 
         // 加载容器文件
-        if (is_file($configPath . '/provider.php')) {
-            $this->app->bind(include $configPath . '/provider.php');
+        if (is_file($addonsAppPath . 'provider.php')) {
+            $this->app->bind(include $addonsAppPath . '/provider.php');
+        }
+
+        // 加载中间件文件
+        if (is_file($addonsAppPath . 'middleware.php')) {
+            $this->app->middleware->import(include $addonsAppPath . 'middleware.php', 'addons');
         }
     }
 

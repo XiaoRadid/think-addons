@@ -37,8 +37,6 @@ class Route
     /**
      * 请求对象
      * @var Request
-     * @author 贵州猿创科技有限公司
-     * @email 416716328@qq.com
      */
     protected $request;
 
@@ -65,7 +63,7 @@ class Route
         // 获取三层数据
         $controller = $this->request->control;
         $action     = $this->request->action;
-        $addons     = $this->request->addons;
+        $addons     = $this->request->addon;
 
         if (empty($addons) || empty($controller) || empty($action)) {
             throw new HttpException(500, lang('addon can not be empty'));
@@ -80,33 +78,20 @@ class Route
             throw new HttpException(500, lang('addon %s is disabled', [$addons]));
         }
 
-        // 重写视图基础路径
-        $config = Config::get('view');
-        $config['view_path'] = $app->addons->getAddonsPath() . $addons . DIRECTORY_SEPARATOR . 'view' . DIRECTORY_SEPARATOR;
-
-        Config::set($config, 'view');
-
         // 组装命名空间
         $addonsNameSpace = "addons\\{$addons}";
         $this->app->setNamespace($addonsNameSpace);
 
-        // 层级路由
-        $levelRoute = '';
-        if ($this->request->levelRoute) {
-            $levelRoute = str_replace("/", "\\", $this->request->levelRoute);
-            $levelRoute = "{$levelRoute}\\";
-        }
-
         // 组装控制器命名空间
         $controlLayout = config('route.controller_layer', 'controller');
-        $class         = "{$addonsNameSpace}\\app\\{$levelRoute}{$controlLayout}\\{$controller}";
+        $class         = "{$addonsNameSpace}\\app\\{$this->request->levelRoute}\\{$controlLayout}\\{$controller}";
 
         if (!class_exists($class)) {
-            throw new \Exception("controller not exists：{$class}");
+            throw new HttpException(404, 'controller not exists:' . $class);
         }
 
         if (!method_exists($class, $action)) {
-            throw new \Exception("action not exists：{$class}@{$action}");
+            throw new HttpException(404, 'method not exists:' . $class . '->' . $action . '()');
         }
 
         // 执行调度转发

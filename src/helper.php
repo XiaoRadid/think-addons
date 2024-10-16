@@ -145,26 +145,61 @@ if (!function_exists('addons_url')) {
     function addons_url($url = '', $param = [], $suffix = true, $domain = false)
     {
         $request = app('request');
+        $addon = $request->addon;
+
+        // 命名空间
+        $levelRoute = '';
+
         if (empty($url)) {
             // 生成 url 模板变量
-            $addons = $request->addon;
             $controller = $request->controller();
             $controller = str_replace('/', '.', $controller);
             $action = $request->action();
         } else {
-            $url = Str::studly($url);
-            $url = parse_url($url);
-            if (isset($url['scheme'])) {
-                $addons = strtolower($url['scheme']);
-                $controller = $url['host'];
-                $action = trim($url['path'], '/');
-            } else {
-                $route = explode('/', $url['path']);
-                $addons = $request->addon;
-                $action = array_pop($route);
-                $controller = array_pop($route) ?: $request->controller();
+//            $url = Str::studly($url);
+//            $url = parse_url($url);
+//            if (isset($url['scheme'])) {
+//                $addon = strtolower($url['scheme']);
+//                $controller = $url['host'];
+//                $action = trim($url['path'], '/');
+//            } else {
+//                $route = explode('/', $url['path']);
+//                $addon = $request->addon;
+//                $action = array_pop($route);
+//                $controller = array_pop($route) ?: $request->controller();
+//            }
+//            $controller = Str::snake((string)$controller);
+
+            // 解析路由
+            $pathinfo  = str_replace("app/{$request->addon}", '', $url);
+            $routeinfo = trim($pathinfo, '/');
+            $pathArr   = explode('/', $routeinfo);
+            $pathCount = count($pathArr);
+
+            // 取控制器
+            $control = config('route.default_controller', 'Index');
+
+            // 取方法名
+            $action = config('route.default_action', 'index');
+            if ($pathCount > 1 && !is_dir(root_path() . "addons/{$addon}/app/" . $routeinfo)) {
+                // 控制器
+                $controlIndex = $pathCount - 2;
+                $control      = ucfirst($pathArr[$controlIndex]);
+                unset($pathArr[$pathCount - 2]);
             }
-            $controller = Str::snake((string)$controller);
+            if ($pathCount > 1) {
+                // 方法
+                $acionIndex = $pathCount - 1;
+                $action     = $pathArr[$acionIndex];
+                unset($pathArr[$pathCount - 1]);
+            }
+            $action = pathinfo($action, PATHINFO_FILENAME);
+
+            $controller = $control;
+            $action  = $action;
+
+            // 层级
+            $levelRoute = implode('/', $pathArr);
 
             /* 解析URL带的参数 */
             if (isset($url['query'])) {
@@ -173,7 +208,10 @@ if (!function_exists('addons_url')) {
             }
         }
 
-        return Route::buildUrl("@addons/{$addons}/{$controller}/{$action}", $param)->suffix($suffix)->domain($domain);
+        $url = "@app/{$addon}";
+        if($levelRoute) $url .= "/{$levelRoute}";
+        $url .= "/{$controller}/{$action}";
+        return Route::buildUrl($url, $param)->suffix($suffix)->domain($domain);
     }
 }
 
@@ -340,19 +378,51 @@ if (!function_exists('get_assets_check')) {
     }
 }
 
-if (!function_exists('get_addons_view')) {
+if (!function_exists('get_addons_template_path')) {
     /**
-     * 获取插件视图
-     * @param mixed $plugin
+     * 获取模板目录位置
+     * @return string
      */
-    function get_addons_view($plugin = '')
+    function get_addons_template_path()
     {
-        $viewPath = public_path() . 'xhadmin/index.html';
-        if (!file_exists($viewPath)) {
-            throw new Exception('官方后台视图模板文件不存在');
+        $view = config('view.view_dir_name');
+        if (is_dir(app_path() . $view)) {
+            $path = app_path() . $view . DIRECTORY_SEPARATOR;
+        } else {
+            $appName = config('xbao.view_style');
+            $path = root_path() . $view . DIRECTORY_SEPARATOR . ($appName ? $appName . DIRECTORY_SEPARATOR : '');
         }
-        $content = file_get_contents($viewPath);
-        $response = Response::create()->content($content);
-        return $response;
+        return $path;
     }
 }
+
+if (!function_exists('addons_view')) {
+    /**
+     * 加载模板输出
+     * @param string $template
+     * @param array $vars           模板文件名
+     * @return false|mixed|string   模板输出变量
+     * @throws \think\Exception
+     */
+    function addons_view($template = '', $vars = [])
+    {
+        $addon = get_addons_instance(request()->addon);
+        return $addon->view($template, $vars);
+    }
+}
+//if (!function_exists('get_addons_view')) {
+//    /**
+//     * 获取插件视图
+//     * @param mixed $plugin
+//     */
+//    function get_addons_view($plugin = '')
+//    {
+//        $viewPath = public_path() . 'xbaocms/index.html';
+//        if (!file_exists($viewPath)) {
+//            throw new Exception('官方后台视图模板文件不存在');
+//        }
+//        $content = file_get_contents($viewPath);
+//        $response = Response::create()->content($content);
+//        return $response;
+//    }
+//}
