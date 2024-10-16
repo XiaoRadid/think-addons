@@ -339,39 +339,18 @@ if (!function_exists('get_assets_check')) {
             if (isset($mimeContentTypes[$extension])) {
                 $mimeContentType = $mimeContentTypes[$extension];
             }
-            # 检测是否框架GZ资源
-            $file = public_path().$request->pathinfo();
-            if (file_exists($file)) {
-                $content  = file_get_contents($file);
-                return response()->code(200)->contentType($mimeContentType)->content($content);
-            }
             # 检测是否插件资源
-            $pluginRoute = explode('/',$request->pathinfo());
-            if (isset($pluginRoute[1])) {
-                $plugin = $pluginRoute[1];
-                unset($pluginRoute[0]);
-                unset($pluginRoute[1]);
-                $pluginRoute = implode('/', $pluginRoute);
-                $file = root_path()."addons/{$plugin}/public/{$pluginRoute}";
+            $addonsRoute = explode('/',$request->pathinfo());
+            if (isset($addonsRoute[1])) {
+                $addons = $addonsRoute[1];
+                unset($addonsRoute[0]);
+                unset($addonsRoute[1]);
+                $addonsRoute = implode('/', $addonsRoute);
+                $file = root_path()."addons/{$addons}/public/{$addonsRoute}";
                 if (file_exists($file)) {
                     $content  = file_get_contents($file);
                     return response()->code(200)->contentType($mimeContentType)->content($content);
                 }
-            }
-            # 文件资源不存在则找官方库
-            $file = root_path()."view/{$request->pathinfo()}.gz";
-            if (file_exists($file)) {
-                $content  = file_get_contents($file);
-                return response()->code(200)->header([
-                    'Content-Type'      => $mimeContentType,
-                    'Content-Encoding'  => 'gzip'
-                ])->content($content);
-            }
-            # 普通文件
-            $file = root_path()."view/{$request->pathinfo()}";
-            if (file_exists($file)) {
-                $content  = file_get_contents($file);
-                return response()->code(200)->contentType($mimeContentType)->content($content);
             }
         }
         return false;

@@ -165,8 +165,9 @@ class Addons
         $this->app->setAppPath($appPath);
         $this->app->http->path($this->request->addonsAppPath);
 
-        $controlLayout = config('route.controller_layer', 'controller');
-        $this->app->setNamespace("addons\\{$this->addon}\\app\\{$this->request->levelRoute}");
+        $namespace = "addons\\{$this->addon}\\app";
+        if($this->request->levelRoute) $namespace .= "\\{$this->request->levelRoute}";
+        $this->app->setNamespace($namespace);
     }
 
     /**
