@@ -319,6 +319,7 @@ if (!function_exists('get_assets_check')) {
         }
         # 检测是否资源文件
         $extension = pathinfo($request->pathinfo(), PATHINFO_EXTENSION);
+
         if (in_array($extension, $staticSuffix)) {
             $mimeContentTypes = [
                 'xml'   => 'application/xml,text/xml,application/x-xml',

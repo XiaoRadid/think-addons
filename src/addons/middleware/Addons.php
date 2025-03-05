@@ -50,9 +50,9 @@ class Addons
     public function handle($request, \Closure $next)
     {
         // 检测是否资源文件
-        if ($response = get_assets_check($request)) {
-            return $response;
-        }
+//        if ($response = get_assets_check($request)) {
+//            return $response;
+//        }
         // 1.初始化应用插件基础参数
         $this->initAddons();
 
